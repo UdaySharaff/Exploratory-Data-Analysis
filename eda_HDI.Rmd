@@ -1,0 +1,306 @@
+---
+title: "EDA Final Project"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r}
+knitr::opts_chunk$set(echo = FALSE)
+library(dplyr)
+library(tidyverse)
+library(readxl)
+library(GGally)
+library(broom)
+library(mgcv)
+
+```
+
+## HDI
+```{r}
+HDI = read_excel('Human Development Index (HDI).xlsx')
+not_all_na <- function(x) any(!is.na(x))
+HDI<- select(HDI,where(not_all_na))
+columns=HDI[5,]
+HDI=HDI[-c(0:5),]
+colnames(HDI)<-columns
+worldHDI=HDI[206,]
+HDI=select(HDI,"Country","2018") 
+HDI=HDI[-c(190:206),]
+colnames(HDI)[2]='HDI'
+
+```
+
+```{r}
+worldHDI=worldHDI %>% gather(Year,HDI)
+worldHDI=worldHDI[-c(0:2),]
+worldHDI=worldHDI %>% mutate_at(c("Year", "HDI"),function(x) as.numeric(as.character(x)))
+
+#View(worldHDI)
+```
+
+
+```{r}
+ggplot(worldHDI,aes(x=Year,y=HDI))+geom_line()+ggtitle("Average HDI of the world across years")
+```
+
+
+```{r}
+AgriEmpl=read_excel('Employment in agriculture (% of total employment).xlsx')
+columns=AgriEmpl[6,]
+AgriEmpl=AgriEmpl[-c(0:6),]
+colnames(AgriEmpl)<-columns
+AgriEmpl = select(AgriEmpl,"Country","2018")
+AgriEmpl=AgriEmpl[-c(181:209),]
+colnames(AgriEmpl)[2]='AgriEmpl'
+
+```
+```{r}
+servEmpl=read_excel('Employment in services (% of total employment).xlsx')
+columns=servEmpl[6,]
+servEmpl=servEmpl[-c(0:6),]
+colnames(servEmpl)<-columns
+servEmpl = select(servEmpl,"Country","2018")
+servEmpl=servEmpl[-c(181:209),]
+colnames(servEmpl)[2]='servEmpl'
+
+```
+```{r}
+Income=read_excel('income_group_levels.xlsx')
+
+```
+
+```{r}
+# GDP=read_excel('GDP per capita (2017 PPP $).xlsx')
+# GDP=select(GDP,where(not_all_na))
+# columns=GDP[5,]
+# GDP=GDP[-c(0:5),]
+# colnames(GDP)<-columns
+# GDP = select(GDP,"Country","2018")
+# GDP=GDP[-c(185:211),]
+# colnames(GDP)[2]='GDP'
+
+```
+```{r}
+GII=read_excel('Gender Inequality Index (GII).xlsx')
+GII=select(GII,where(not_all_na))
+columns=GII[5,]
+GII=GII[-c(0:5),]
+colnames(GII)<-columns
+GII = select(GII,"Country","2018")
+GII=GII[-c(163:207),]
+colnames(GII)[2]='GII'
+
+```
+
+
+```{r}
+df = Reduce(function(x,y) merge(x = x, y = y, by = "Country"), list(HDI, GII,AgriEmpl,servEmpl))
+df=df %>% mutate_at(vars(-Country),function(x) as.numeric(as.character(x)))
+df =drop_na(df)
+
+```
+```{r}
+df = merge(df,Income,by='Country')
+```
+```{r}
+summary(df$Incgroup)
+```
+
+```{r}
+df$Incgroup = factor(df$Incgroup, order = TRUE,levels = c("Low income" ,"Lower middle income", "Upper middle income","High income" ))
+```
+
+```{r}
+# ggplot(df,aes(y=HDI,x=GDP))+geom_point()+geom_smooth(method = 'lm',se=F,colour='green')+geom_smooth(method = 'loess',degree=1,se=F,colour='red')+geom_smooth(method = 'gam',se=F)+labs(title= "Human Development Index and Gross Domestic Product",x="Gross Domestic Product", y="Human Development Index")
+```
+
+```{r}
+# df$logGDP=log10(df$GDP)
+# ggplot(df,aes(y=HDI,x=logGDP))+geom_point()+geom_smooth(method = 'lm',se=F,colour='green')+geom_smooth(method = 'loess',degree=1,se=F,colour='red')+geom_smooth(method = 'gam',se=F)+labs(title= "Human Development Index and log of Gross Domestic Product",x="log of Gross Domestic Product", y="Human Development Index")
+```
+
+
+```{r}
+ggplot(df,aes(y=HDI,x=AgriEmpl))+geom_point(aes(color=Incgroup))+
+  #geom_smooth(method = 'lm',se=F,colour='green')+
+  geom_smooth(method = 'loess',degree=1,se=F)+
+  #geom_smooth(method = 'gam',se=F)+
+  labs(title= "Human Development Index vs Agriculture Employment",x=" % of population working in Agriculture sector", y="Human Development Index")
+```
+
+```{r}
+ggplot(df,aes(y=HDI,x=servEmpl))+geom_point(aes(color=Incgroup))+
+  #geom_smooth(method = 'lm',se=F,colour='green')+
+  geom_smooth(method = 'loess',degree=1,se=F)+
+  #geom_smooth(method = 'gam',se=F)+
+  labs(title= "Human Development Index vs Service Employment",x=" % of population working in Service sector", y="Human Development Index")
+```
+
+```{r}
+ggplot(df,aes(y=HDI,x=GII))+geom_point(aes(color=Incgroup))+
+  #geom_smooth(method = 'lm',se=F,colour='green')+
+  geom_smooth(method = 'loess',degree=1,se=F)+
+  #geom_smooth(method = 'gam',se=F)+
+  labs(title= "Human Development Index vs Gender Inequality Index",x="Gender Inequality Index", y="Human Development Index")
+```
+
+```{r}
+ggpairs(df[2:5])+labs(title= "Pairplots")
+```
+
+
+```{r}
+summary(df)
+```
+
+```{r}
+# ggplot(df,aes(y=HDI,x=GII))+geom_point()+
+#   #geom_smooth(method = 'lm',se=F,colour='green')+
+#   #geom_smooth(method = 'loess',degree=1,se=F,colour='red')+
+#   geom_smooth(method = 'gam',se=F)+
+#   facet_wrap(~Incgroup)+labs(title= "Human Development Index and Gender Inequality Index",x="Gender Inequality Index", y="Human Development Index")
+```
+
+```{r}
+ggplot(df,aes(y=HDI,x=AgriEmpl))+geom_point(aes(color=Incgroup))+
+  #geom_smooth(method = 'lm',se=F,colour='green')+
+  #geom_smooth(method = 'loess',degree=1,se=F,colour='red')+
+  geom_smooth(method = 'gam',se=F)+
+  facet_wrap(~cut_number(GII, n=3))+labs(title= "Human Development Index vs Agriculture Employment",subtitle="faceted by Gender Inequality",x=" % of population working in Agriculture sector", y="Human Development Index")
+
+```
+```{r}
+ggplot(df,aes(y=HDI,x=AgriEmpl))+geom_point(aes(color=Incgroup))+
+  #geom_smooth(method = 'lm',se=F,colour='green')+
+  #geom_smooth(method = 'loess',degree=1,se=F,colour='red')+
+  geom_smooth(method = 'gam',se=F)+
+  facet_wrap(~cut_number(servEmpl, n=3))+labs(title= "Human Development Index vs Agriculture Employment",subtitle="faceted by Service Employment",x="Agriculture Employment", y="Human Development Index")
+
+```
+
+```{r}
+ggplot(df,aes(y=HDI,x=servEmpl))+geom_point(aes(color=Incgroup))+
+  #geom_smooth(method = 'lm',se=F,colour='green')+
+  #geom_smooth(method = 'loess',degree=1,se=F,colour='red')+
+  geom_smooth(method = 'gam',se=F)+
+  facet_wrap(~cut_number(GII, n=3))+labs(title= "Human Development Index vs Service Employment",subtitle="faceted by Gender Inequality",x=" % of population working in Service sector", y="Human Development Index")
+
+
+```
+
+
+```{r}
+GII.df=gam(HDI~GII,data=df)
+GII.df=augment(GII.df)
+
+```
+
+```{r}
+  ggplot(GII.df, aes(x = GII, y = .resid)) + 
+  geom_point(color='red') + 
+  geom_smooth(method = "lm", se = FALSE)+labs(title= "Gender Inequality Index and Residual",x="Gender Inequality Index", y="Residual")
+```
+```{r}
+AgriEmpl.df=gam(HDI~AgriEmpl,data=df)
+AgriEmpl.df=augment(AgriEmpl.df)
+
+```
+```{r}
+view(AgriEmpl.df)
+```
+
+```{r}
+  ggplot(AgriEmpl.df, aes(x = AgriEmpl, y = .resid)) + 
+  geom_point(color='red') + 
+  geom_smooth(method = "lm", se = FALSE)+labs(title= "Agriculture Employment and Residual",x=" % of population working in Agriculture sector", y="Residual")
+```
+
+```{r}
+servEmpl.df=gam(HDI~servEmpl,data=df)
+servEmpl.df=augment(servEmpl.df)
+
+```
+
+```{r}
+  ggplot(servEmpl.df, aes(x = servEmpl, y = .resid)) + 
+  geom_point(color='red') + 
+  geom_smooth(method = "lm", se = FALSE)+labs(title= "Service Employment and Residual",x=" % of population working in Service sector", y="Residual")
+```
+
+```{r}
+AIC(gam(HDI~servEmpl+GII+AgriEmpl,data=df))
+AIC(gam(HDI~servEmpl:GII+AgriEmpl:servEmpl+AgriEmpl:GII,data=df))
+AIC(gam(HDI~servEmpl*GII+AgriEmpl*GII,data=df))
+AIC(gam(HDI~servEmpl:GII+AgriEmpl,data=df))
+AIC(gam(HDI~servEmpl:GII+AgriEmpl:GII,data=df))
+AIC(gam(HDI~servEmpl:GII+AgriEmpl:GII,data=df))
+
+AIC(gam(HDI~servEmpl:GII+AgriEmpl+servEmpl,data=df))
+AIC(gam(HDI~servEmpl*AgriEmpl+GII,data=df))
+AIC(gam(HDI~servEmpl+AgriEmpl*GII,data=df))
+```
+
+
+
+```{r}
+model=gam(HDI~servEmpl:GII+AgriEmpl+servEmpl,data=df)
+dummy.coef(model)
+summary(model)
+df1=augment(model)
+
+```
+
+```{r}
+  ggplot(df1, aes(x = .fitted, y = .resid)) + 
+  geom_point(color='red') + 
+  geom_smooth(method = "lm", se = FALSE)+labs(title= "Fitted and Residual",x="Fitted", y="Residual")
+```
+
+
+```{r}
+df.grid =expand.grid(GII = median(df$GII),servEmpl = seq(0,100,1),AgriEmpl=median(df$AgriEmpl))
+pred = predict(model, newdata = df.grid, type = 'response')
+pred.grid = data.frame(df.grid, HDI =as.vector(pred))
+```
+
+```{r}
+ggplot(pred.grid,aes(y=HDI,x=servEmpl))+geom_line()+labs(title= "Human Development Index and Service Employment",x=" % of population working in Service sector", y="Human Development Index")
+
+```
+
+
+```{r}
+df.grid2 =expand.grid(GII = median(df$GII) ,AgriEmpl= seq(0,100,1),servEmpl=median(df$servEmpl))
+pred2 = predict(model, newdata = df.grid2, type = 'response')
+pred.grid2 = data.frame(df.grid2, HDI =as.vector(pred2))
+```
+
+```{r}
+ggplot(pred.grid2,aes(y=HDI,x=AgriEmpl))+geom_line()+labs(title= "Human Development Index and Agriculture Employment",x=" % of population working in Agriculture sector", y="Human Development Index")
+
+```
+
+```{r}
+df.grid =expand.grid(GII = median(df$GII),servEmpl = seq(0,100,1),AgriEmpl=seq(0,100,1))
+pred = predict(model, newdata = df.grid, type = 'response')
+pred.grid = data.frame(df.grid, HDI =as.vector(pred))
+```
+
+```{r}
+pred.grid=pred.grid[pred.grid$AgriEmpl+pred.grid$servEmpl<=100,]
+ggplot(pred.grid, aes(x =AgriEmpl , y =HDI)) +facet_wrap(~~cut_number(servEmpl, n=3))+geom_smooth()+ggtitle("Agriculture Employment vs Human development index",subtitle="faceted by Service Employment")+labs(x=" % of population working in Agriculture sector", y="Human Development Index")
+
+
+
+```
+
+```{r}
+ggplot(pred.grid, aes(x =AgriEmpl , y =servEmpl , z = HDI,fill=HDI)) +
+  geom_raster() +
+  geom_contour() + 
+  scale_fill_distiller(palette = "RdYlBu")+
+
+  ggtitle("Raster and Contour Plot",subtitle="Service Employment vs Agriculture employment with HDI as fill")+labs(x=" % of population working in Agriculture sector", y=" % of population working in Service sector")
+
+```
